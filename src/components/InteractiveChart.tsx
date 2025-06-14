@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, TrendingDown, BarChart3, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, Activity, RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ChartData {
   date: string;
@@ -14,9 +14,9 @@ interface ChartData {
   low: number;
   close: number;
   volume: number;
-  rsi: number;
-  macd: number;
-  signal: number;
+  rsi?: number;
+  sma20?: number;
+  sma50?: number;
 }
 
 interface InteractiveChartProps {
@@ -30,47 +30,113 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
   const [chartType, setChartType] = useState('line');
   const [showIndicators, setShowIndicators] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    generateMockChartData();
+    fetchRealChartData();
   }, [symbol, timeframe]);
 
-  const generateMockChartData = () => {
+  const fetchRealChartData = async () => {
     setLoading(true);
+    setError(null);
     
-    // Generate realistic mock data
-    const dataPoints = timeframe === '1D' ? 24 : timeframe === '1W' ? 7 : 30;
-    const basePrice = Math.random() * 200 + 50;
-    const data: ChartData[] = [];
+    try {
+      const intervalMap: Record<string, string> = {
+        '1D': '5min',
+        '1W': '30min', 
+        '1M': '1h',
+        '3M': '4h',
+        '1Y': '1day'
+      };
 
-    for (let i = 0; i < dataPoints; i++) {
-      const previousPrice = i === 0 ? basePrice : data[i - 1].close;
-      const change = (Math.random() - 0.5) * previousPrice * 0.05;
-      const open = previousPrice;
-      const close = Math.max(0.01, previousPrice + change);
-      const high = Math.max(open, close) * (1 + Math.random() * 0.02);
-      const low = Math.min(open, close) * (1 - Math.random() * 0.02);
-      
-      data.push({
-        date: timeframe === '1D' ? 
-          `${9 + i}:00` : 
-          timeframe === '1W' ? 
-            ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] :
-            `${i + 1}/12`,
-        price: close,
-        open,
-        high,
-        low,
-        close,
-        volume: Math.floor(Math.random() * 1000000),
-        rsi: 30 + Math.random() * 40,
-        macd: (Math.random() - 0.5) * 5,
-        signal: (Math.random() - 0.5) * 3,
+      const { data, error } = await supabase.functions.invoke('market-data', {
+        body: { 
+          symbol: symbol,
+          timeframe: timeframe,
+          interval: intervalMap[timeframe] || '5min'
+        }
       });
-    }
 
-    setChartData(data);
-    setLoading(false);
+      if (error) throw error;
+
+      if (data?.data && data.data.length > 0) {
+        const processedData = data.data.map((item: any, index: number) => {
+          const chartItem: ChartData = {
+            date: formatDateForTimeframe(item.date, timeframe),
+            price: item.close,
+            open: item.open,
+            high: item.high,
+            low: item.low,
+            close: item.close,
+            volume: item.volume
+          };
+
+          // Add technical indicators
+          if (showIndicators && data.data.length > 20) {
+            chartItem.rsi = calculateRSI(data.data.slice(Math.max(0, index - 13), index + 1).map((d: any) => d.close));
+            chartItem.sma20 = calculateSMA(data.data.slice(Math.max(0, index - 19), index + 1).map((d: any) => d.close));
+            if (data.data.length > 50) {
+              chartItem.sma50 = calculateSMA(data.data.slice(Math.max(0, index - 49), index + 1).map((d: any) => d.close));
+            }
+          }
+
+          return chartItem;
+        });
+
+        setChartData(processedData);
+      } else {
+        throw new Error('No data available for this symbol and timeframe');
+      }
+    } catch (err) {
+      console.error('Error fetching chart data:', err);
+      setError('Failed to load chart data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDateForTimeframe = (dateStr: string, tf: string) => {
+    const date = new Date(dateStr);
+    
+    switch (tf) {
+      case '1D':
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      case '1W':
+        return date.toLocaleDateString('en-US', { weekday: 'short' });
+      case '1M':
+      case '3M':
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      case '1Y':
+        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      default:
+        return date.toLocaleDateString();
+    }
+  };
+
+  const calculateSMA = (prices: number[]): number => {
+    if (prices.length === 0) return 0;
+    return prices.reduce((sum, price) => sum + price, 0) / prices.length;
+  };
+
+  const calculateRSI = (prices: number[]): number => {
+    if (prices.length < 2) return 50;
+    
+    const gains: number[] = [];
+    const losses: number[] = [];
+    
+    for (let i = 1; i < prices.length; i++) {
+      const change = prices[i] - prices[i - 1];
+      gains.push(change > 0 ? change : 0);
+      losses.push(change < 0 ? Math.abs(change) : 0);
+    }
+    
+    const avgGain = gains.reduce((sum, gain) => sum + gain, 0) / gains.length;
+    const avgLoss = losses.reduce((sum, loss) => sum + loss, 0) / losses.length;
+    
+    if (avgLoss === 0) return 100;
+    
+    const rs = avgGain / avgLoss;
+    return 100 - (100 / (1 + rs));
   };
 
   const getCurrentPrice = () => {
@@ -103,6 +169,22 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
     );
   }
 
+  if (error) {
+    return (
+      <Card className="bg-gray-900 border-gray-800">
+        <CardContent className="p-6">
+          <div className="text-center">
+            <p className="text-red-400 mb-4">{error}</p>
+            <Button onClick={fetchRealChartData} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
@@ -129,6 +211,14 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
           </div>
           <div className="flex space-x-2">
             <Button
+              onClick={fetchRealChartData}
+              size="sm"
+              variant="outline"
+              className="text-gray-400 hover:text-white"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button
               variant={chartType === 'line' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setChartType('line')}
@@ -142,7 +232,7 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
               onClick={() => setChartType('bar')}
               className="text-xs"
             >
-              Bars
+              Volume
             </Button>
           </div>
         </div>
@@ -208,7 +298,7 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
                     <>
                       <Line
                         type="monotone"
-                        dataKey="rsi"
+                        dataKey="sma20"
                         stroke="#F59E0B"
                         strokeWidth={1}
                         dot={false}
@@ -216,7 +306,7 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
                       />
                       <Line
                         type="monotone"
-                        dataKey="macd"
+                        dataKey="sma50"
                         stroke="#10B981"
                         strokeWidth={1}
                         dot={false}
@@ -236,7 +326,6 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
                   <YAxis 
                     stroke="#9CA3AF"
                     fontSize={12}
-                    domain={['dataMin - 5', 'dataMax + 5']}
                   />
                   <Tooltip
                     contentStyle={{
@@ -255,24 +344,24 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
             </ResponsiveContainer>
           </div>
 
-          {showIndicators && (
+          {showIndicators && chartData.length > 0 && (
             <div className="grid grid-cols-3 gap-4 mt-4">
               <div className="bg-gray-800 p-3 rounded">
                 <div className="text-xs text-gray-400">RSI (14)</div>
                 <div className="text-white font-semibold">
-                  {chartData[chartData.length - 1]?.rsi.toFixed(1) || '0.0'}
+                  {chartData[chartData.length - 1]?.rsi?.toFixed(1) || 'N/A'}
                 </div>
               </div>
               <div className="bg-gray-800 p-3 rounded">
-                <div className="text-xs text-gray-400">MACD</div>
+                <div className="text-xs text-gray-400">SMA 20</div>
                 <div className="text-white font-semibold">
-                  {chartData[chartData.length - 1]?.macd.toFixed(2) || '0.00'}
+                  ${chartData[chartData.length - 1]?.sma20?.toFixed(2) || 'N/A'}
                 </div>
               </div>
               <div className="bg-gray-800 p-3 rounded">
-                <div className="text-xs text-gray-400">Signal</div>
+                <div className="text-xs text-gray-400">SMA 50</div>
                 <div className="text-white font-semibold">
-                  {chartData[chartData.length - 1]?.signal.toFixed(2) || '0.00'}
+                  ${chartData[chartData.length - 1]?.sma50?.toFixed(2) || 'N/A'}
                 </div>
               </div>
             </div>

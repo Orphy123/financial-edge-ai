@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
@@ -10,10 +9,10 @@ import AnalysisHistory from '@/components/AnalysisHistory';
 import MarketSearch from '@/components/MarketSearch';
 import InteractiveChart from '@/components/InteractiveChart';
 import AIChatAssistant from '@/components/AIChatAssistant';
-import MarketPredictions from '@/components/MarketPredictions';
 import SymbolNews from '@/components/SymbolNews';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, LogIn, LogOut, User } from 'lucide-react';
+import RealForecast from '@/components/RealForecast';
 
 const Index = () => {
   const { user, signOut, loading } = useAuth();
@@ -103,9 +102,9 @@ const Index = () => {
                 />
               </section>
 
-              {/* AI Predictions */}
+              {/* Real AI Forecast */}
               <section>
-                <MarketPredictions 
+                <RealForecast 
                   symbol={selectedSymbol.symbol} 
                   currentPrice={currentPrice} 
                 />

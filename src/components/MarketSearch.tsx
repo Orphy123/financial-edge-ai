@@ -1,72 +1,59 @@
 
 import React, { useState } from 'react';
-import { Search, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-
-interface SearchResult {
-  symbol: string;
-  name: string;
-  type: string;
-  exchange: string;
-}
+import { Search, TrendingUp } from 'lucide-react';
 
 interface MarketSearchProps {
   onSymbolSelect: (symbol: string, name: string) => void;
 }
 
+const SUPPORTED_SYMBOLS = {
+  // US Equities & ETFs
+  'AAPL': 'Apple Inc.',
+  'MSFT': 'Microsoft Corporation',
+  'TSLA': 'Tesla Inc.',
+  'SPY': 'SPDR S&P 500 ETF',
+  'QQQ': 'Invesco QQQ ETF',
+  'DIA': 'SPDR Dow Jones ETF',
+  // Forex
+  'EUR/USD': 'Euro to US Dollar',
+  'GBP/USD': 'British Pound to US Dollar',
+  'USD/JPY': 'US Dollar to Japanese Yen',
+  'AUD/USD': 'Australian Dollar to US Dollar',
+  // Crypto
+  'BTC/USD': 'Bitcoin to US Dollar',
+  'ETH/USD': 'Ethereum to US Dollar'
+};
+
 const MarketSearch = ({ onSymbolSelect }: MarketSearchProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showResults, setShowResults] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredSymbols, setFilteredSymbols] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Popular symbols for quick access
-  const popularSymbols = [
-    { symbol: 'AAPL', name: 'Apple Inc.', type: 'Stock', exchange: 'NASDAQ' },
-    { symbol: 'GOOGL', name: 'Alphabet Inc.', type: 'Stock', exchange: 'NASDAQ' },
-    { symbol: 'MSFT', name: 'Microsoft Corporation', type: 'Stock', exchange: 'NASDAQ' },
-    { symbol: 'TSLA', name: 'Tesla Inc.', type: 'Stock', exchange: 'NASDAQ' },
-    { symbol: 'AMZN', name: 'Amazon.com Inc.', type: 'Stock', exchange: 'NASDAQ' },
-    { symbol: 'NVDA', name: 'NVIDIA Corporation', type: 'Stock', exchange: 'NASDAQ' },
-    { symbol: 'SPY', name: 'S&P 500 ETF', type: 'ETF', exchange: 'NYSE' },
-    { symbol: 'EUR/USD', name: 'Euro to US Dollar', type: 'Forex', exchange: 'FX' },
-  ];
-
-  const handleSearch = async (query: string) => {
-    if (query.length < 2) {
-      setSearchResults([]);
-      setShowResults(false);
-      return;
-    }
-
-    setIsSearching(true);
-    setShowResults(true);
-
-    // Simulate search - in real app, this would call an API
-    setTimeout(() => {
-      const filtered = popularSymbols.filter(
-        item => 
-          item.symbol.toLowerCase().includes(query.toLowerCase()) ||
-          item.name.toLowerCase().includes(query.toLowerCase())
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    if (value.length > 0) {
+      const filtered = Object.keys(SUPPORTED_SYMBOLS).filter(symbol => 
+        symbol.toLowerCase().includes(value.toLowerCase()) ||
+        SUPPORTED_SYMBOLS[symbol as keyof typeof SUPPORTED_SYMBOLS].toLowerCase().includes(value.toLowerCase())
       );
-      setSearchResults(filtered);
-      setIsSearching(false);
-    }, 300);
+      setFilteredSymbols(filtered);
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
   };
 
-  const handleInputChange = (value: string) => {
-    setSearchQuery(value);
-    handleSearch(value);
-  };
-
-  const selectSymbol = (symbol: string, name: string) => {
+  const handleSymbolSelect = (symbol: string) => {
+    const name = SUPPORTED_SYMBOLS[symbol as keyof typeof SUPPORTED_SYMBOLS];
     onSymbolSelect(symbol, name);
-    setSearchQuery(`${symbol} - ${name}`);
-    setShowResults(false);
+    setSearchTerm(`${symbol} - ${name}`);
+    setShowSuggestions(false);
   };
+
+  const popularSymbols = ['AAPL', 'MSFT', 'TSLA', 'SPY', 'EUR/USD', 'BTC/USD'];
 
   return (
     <Card className="bg-gray-900 border-gray-800">
@@ -79,68 +66,47 @@ const MarketSearch = ({ onSymbolSelect }: MarketSearchProps) => {
       <CardContent>
         <div className="relative">
           <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              placeholder="Search stocks, ETFs, forex... (e.g., Apple, AAPL, MSFT)"
-              value={searchQuery}
-              onChange={(e) => handleInputChange(e.target.value)}
+              type="text"
+              placeholder="Search stocks, forex, crypto... (e.g., AAPL, EUR/USD, BTC)"
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
               className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
             />
           </div>
-
-          {showResults && (
-            <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-700 rounded-md shadow-lg">
-              <Command className="bg-gray-800">
-                <CommandList className="max-h-64">
-                  {isSearching ? (
-                    <div className="p-4 text-center text-gray-400">Searching...</div>
-                  ) : searchResults.length > 0 ? (
-                    <CommandGroup>
-                      {searchResults.map((result) => (
-                        <CommandItem
-                          key={result.symbol}
-                          onSelect={() => selectSymbol(result.symbol, result.name)}
-                          className="cursor-pointer hover:bg-gray-700 text-white"
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <div>
-                              <div className="font-semibold">{result.symbol}</div>
-                              <div className="text-sm text-gray-400">{result.name}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xs text-blue-400">{result.type}</div>
-                              <div className="text-xs text-gray-500">{result.exchange}</div>
-                            </div>
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  ) : (
-                    <CommandEmpty className="text-gray-400 p-4 text-center">
-                      No results found. Try searching for stocks like "Apple" or "AAPL"
-                    </CommandEmpty>
-                  )}
-                </CommandList>
-              </Command>
+          
+          {showSuggestions && filteredSymbols.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto">
+              {filteredSymbols.map((symbol) => (
+                <button
+                  key={symbol}
+                  onClick={() => handleSymbolSelect(symbol)}
+                  className="w-full px-4 py-3 text-left hover:bg-gray-700 border-b border-gray-700 last:border-b-0"
+                >
+                  <div className="text-white font-medium">{symbol}</div>
+                  <div className="text-gray-400 text-sm">
+                    {SUPPORTED_SYMBOLS[symbol as keyof typeof SUPPORTED_SYMBOLS]}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>
-
+        
         <div className="mt-6">
           <h3 className="text-white text-sm font-medium mb-3">Popular Symbols</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {popularSymbols.slice(0, 8).map((item) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {popularSymbols.map((symbol) => (
               <Button
-                key={item.symbol}
+                key={symbol}
                 variant="outline"
                 size="sm"
-                onClick={() => selectSymbol(item.symbol, item.name)}
-                className="bg-gray-800 border-gray-700 text-white hover:bg-gray-700 text-left justify-start"
+                onClick={() => handleSymbolSelect(symbol)}
+                className="justify-start text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white"
               >
-                <div>
-                  <div className="font-semibold text-xs">{item.symbol}</div>
-                  <div className="text-xs text-gray-400 truncate">{item.name.slice(0, 15)}...</div>
-                </div>
+                <TrendingUp className="h-3 w-3 mr-2" />
+                {symbol}
               </Button>
             ))}
           </div>

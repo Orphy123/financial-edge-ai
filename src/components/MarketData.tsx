@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,8 +24,11 @@ const MarketData = () => {
       setLoading(true);
       setError(null);
       
+      // Featured symbols for the main dashboard
+      const featuredSymbols = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'EUR/USD', 'BTC/USD'];
+      
       const { data, error } = await supabase.functions.invoke('market-data', {
-        body: { symbols: ['SPY', 'QQQ', 'EUR/USD'] }
+        body: { symbols: featuredSymbols }
       });
 
       if (error) {
@@ -36,74 +38,22 @@ const MarketData = () => {
       if (data?.data && data.data.length > 0) {
         setMarketData(data.data);
       } else {
-        // Fallback data if API fails
-        setMarketData([
-          {
-            symbol: 'US30',
-            name: 'S&P 500 ETF (SPY)',
-            price: 485.73,
-            change: 2.45,
-            changePercent: 0.51,
-            volume: '45.2M',
-            high: 487.12,
-            low: 483.89
-          },
-          {
-            symbol: 'US100',
-            name: 'NASDAQ 100 ETF (QQQ)',
-            price: 442.15,
-            change: -1.23,
-            changePercent: -0.28,
-            volume: '32.1M',
-            high: 444.67,
-            low: 441.45
-          },
-          {
-            symbol: 'EUR/USD',
-            name: 'Euro to US Dollar',
-            price: 1.0845,
-            change: 0.0012,
-            changePercent: 0.11,
-            volume: '45.2B',
-            high: 1.0867,
-            low: 1.0832
-          }
-        ]);
+        throw new Error('No market data available');
       }
     } catch (err) {
       console.error('Error fetching market data:', err);
-      setError('Failed to load market data');
-      // Fallback to mock data
+      setError('Failed to load market data - API may be rate limited');
+      // Minimal fallback for demo
       setMarketData([
         {
-          symbol: 'US30',
-          name: 'S&P 500 ETF (SPY)',
+          symbol: 'SPY',
+          name: 'SPDR S&P 500 ETF',
           price: 485.73,
           change: 2.45,
           changePercent: 0.51,
           volume: '45.2M',
           high: 487.12,
           low: 483.89
-        },
-        {
-          symbol: 'US100',
-          name: 'NASDAQ 100 ETF (QQQ)',
-          price: 442.15,
-          change: -1.23,
-          changePercent: -0.28,
-          volume: '32.1M',
-          high: 444.67,
-          low: 441.45
-        },
-        {
-          symbol: 'EUR/USD',
-          name: 'Euro to US Dollar',
-          price: 1.0845,
-          change: 0.0012,
-          changePercent: 0.11,
-          volume: '45.2B',
-          high: 1.0867,
-          low: 1.0832
         }
       ]);
     } finally {
@@ -147,11 +97,11 @@ const MarketData = () => {
     <div className="space-y-4">
       {error && (
         <div className="bg-yellow-900/20 border border-yellow-400/30 rounded-lg p-3">
-          <p className="text-yellow-400 text-sm">{error} - Showing cached data</p>
+          <p className="text-yellow-400 text-sm">{error}</p>
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {marketData.map((item) => (
           <Card key={item.symbol} className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-all duration-300">
             <CardHeader className="pb-3">
