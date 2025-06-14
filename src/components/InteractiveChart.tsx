@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, TrendingDown, BarChart3, Activity, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, Activity, RefreshCw, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ChartData {
@@ -31,16 +31,52 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
   const [showIndicators, setShowIndicators] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     fetchRealChartData();
   }, [symbol, timeframe]);
+
+  const generateFallbackData = () => {
+    const data: ChartData[] = [];
+    const basePrice = 100 + Math.random() * 400;
+    const dataPoints = timeframe === '1D' ? 48 : timeframe === '1W' ? 168 : 720;
+    
+    for (let i = 0; i < dataPoints; i++) {
+      const date = new Date();
+      const interval = timeframe === '1D' ? 30 : timeframe === '1W' ? 60 : 120;
+      date.setMinutes(date.getMinutes() - (dataPoints - i) * interval);
+      
+      const volatility = 0.02;
+      const change = (Math.random() - 0.5) * volatility;
+      const price = i === 0 ? basePrice : data[i-1].close * (1 + change);
+      
+      const open = i === 0 ? price : data[i-1].close;
+      const high = price * (1 + Math.random() * 0.01);
+      const low = price * (1 - Math.random() * 0.01);
+      const volume = Math.floor(Math.random() * 1000000) + 100000;
+
+      data.push({
+        date: formatDateForTimeframe(date.toISOString(), timeframe),
+        price: price,
+        open: open,
+        high: high,
+        low: low,
+        close: price,
+        volume: volume
+      });
+    }
+    
+    return data;
+  };
 
   const fetchRealChartData = async () => {
     setLoading(true);
     setError(null);
     
     try {
+      console.log(`Fetching chart data for ${symbol} with timeframe ${timeframe}`);
+      
       const intervalMap: Record<string, string> = {
         '1D': '5min',
         '1W': '30min', 
@@ -49,7 +85,7 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
         '1Y': '1day'
       };
 
-      const { data, error } = await supabase.functions.invoke('market-data', {
+      const { data, error: functionError } = await supabase.functions.invoke('market-data', {
         body: { 
           symbol: symbol,
           timeframe: timeframe,
@@ -57,26 +93,38 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
         }
       });
 
-      if (error) throw error;
+      console.log('Market data response:', { data, error: functionError });
 
-      if (data?.data && data.data.length > 0) {
+      if (functionError) {
+        console.error('Function error:', functionError);
+        throw new Error(`API Error: ${functionError.message || 'Unknown error'}`);
+      }
+
+      if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
         const processedData = data.data.map((item: any, index: number) => {
           const chartItem: ChartData = {
             date: formatDateForTimeframe(item.date, timeframe),
-            price: item.close,
-            open: item.open,
-            high: item.high,
-            low: item.low,
-            close: item.close,
-            volume: item.volume
+            price: parseFloat(item.close) || 0,
+            open: parseFloat(item.open) || 0,
+            high: parseFloat(item.high) || 0,
+            low: parseFloat(item.low) || 0,
+            close: parseFloat(item.close) || 0,
+            volume: parseInt(item.volume) || 0
           };
 
-          // Add technical indicators
+          // Add technical indicators if enabled
           if (showIndicators && data.data.length > 20) {
-            chartItem.rsi = calculateRSI(data.data.slice(Math.max(0, index - 13), index + 1).map((d: any) => d.close));
-            chartItem.sma20 = calculateSMA(data.data.slice(Math.max(0, index - 19), index + 1).map((d: any) => d.close));
-            if (data.data.length > 50) {
-              chartItem.sma50 = calculateSMA(data.data.slice(Math.max(0, index - 49), index + 1).map((d: any) => d.close));
+            const prices = data.data.slice(Math.max(0, index - 13), index + 1).map((d: any) => parseFloat(d.close));
+            chartItem.rsi = calculateRSI(prices);
+            
+            if (index >= 19) {
+              const sma20Prices = data.data.slice(index - 19, index + 1).map((d: any) => parseFloat(d.close));
+              chartItem.sma20 = calculateSMA(sma20Prices);
+            }
+            
+            if (index >= 49) {
+              const sma50Prices = data.data.slice(index - 49, index + 1).map((d: any) => parseFloat(d.close));
+              chartItem.sma50 = calculateSMA(sma50Prices);
             }
           }
 
@@ -84,12 +132,18 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
         });
 
         setChartData(processedData);
+        setRetryCount(0);
       } else {
-        throw new Error('No data available for this symbol and timeframe');
+        throw new Error('No valid data received from API');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching chart data:', err);
-      setError('Failed to load chart data');
+      
+      // Use fallback data but show warning
+      const fallbackData = generateFallbackData();
+      setChartData(fallbackData);
+      setError(`Using simulated data: ${err.message}`);
+      setRetryCount(prev => prev + 1);
     } finally {
       setLoading(false);
     }
@@ -115,7 +169,9 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
 
   const calculateSMA = (prices: number[]): number => {
     if (prices.length === 0) return 0;
-    return prices.reduce((sum, price) => sum + price, 0) / prices.length;
+    const validPrices = prices.filter(p => !isNaN(p) && p > 0);
+    if (validPrices.length === 0) return 0;
+    return validPrices.reduce((sum, price) => sum + price, 0) / validPrices.length;
   };
 
   const calculateRSI = (prices: number[]): number => {
@@ -169,22 +225,6 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
     );
   }
 
-  if (error) {
-    return (
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
-          <div className="text-center">
-            <p className="text-red-400 mb-4">{error}</p>
-            <Button onClick={fetchRealChartData} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
@@ -208,6 +248,12 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
                 </span>
               </div>
             </div>
+            {error && (
+              <div className="flex items-center space-x-2 mt-2 text-yellow-400 text-sm">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{error}</span>
+              </div>
+            )}
           </div>
           <div className="flex space-x-2">
             <Button
@@ -215,8 +261,9 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
               size="sm"
               variant="outline"
               className="text-gray-400 hover:text-white"
+              disabled={loading}
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
             <Button
               variant={chartType === 'line' ? 'default' : 'outline'}
@@ -248,6 +295,7 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
                   size="sm"
                   onClick={() => setTimeframe(tf)}
                   className="text-xs"
+                  disabled={loading}
                 >
                   {tf}
                 </Button>
@@ -289,7 +337,7 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
                   />
                   <Line
                     type="monotone"
-                    dataKey="price"
+                    dataKey="close"
                     stroke="#3B82F6"
                     strokeWidth={2}
                     dot={false}
