@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import MarketData from '@/components/MarketData';
 import NewsPanel from '@/components/NewsPanel';
 import AIAnalysis from '@/components/AIAnalysis';
-import ApiKeyManager from '@/components/ApiKeyManager';
 import Watchlist from '@/components/Watchlist';
 import AnalysisHistory from '@/components/AnalysisHistory';
 import { Button } from '@/components/ui/button';
@@ -112,15 +111,6 @@ const Index = () => {
               <AIAnalysis />
             </section>
           </div>
-
-          {/* API Configuration */}
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
-              <span>Configuration</span>
-              <div className="h-1 w-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded" />
-            </h2>
-            <ApiKeyManager />
-          </section>
         </div>
       </main>
 

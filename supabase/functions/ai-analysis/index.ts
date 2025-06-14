@@ -24,15 +24,15 @@ serve(async (req) => {
     const analyses = [];
 
     for (const symbol of symbolList) {
-      const prompt = `Provide a brief trading analysis for ${symbol}. Include:
-      1. A recommendation (BUY/SELL/HOLD)
-      2. Confidence level (60-95)
-      3. 3-4 bullet points of rationale
-      4. ML prediction (BUY/SELL)
-      5. ML confidence (55-95)
-      6. Risk level (LOW/MEDIUM/HIGH)
-      
-      Keep it concise and professional. Format as JSON with keys: recommendation, confidence, rationale (array), mlPrediction, mlConfidence, riskLevel`;
+      const prompt = `Provide a brief trading analysis for ${symbol}. Respond with ONLY a valid JSON object (no markdown, no code blocks) with these exact keys:
+      {
+        "recommendation": "BUY" or "SELL" or "HOLD",
+        "confidence": number between 60-95,
+        "rationale": ["reason 1", "reason 2", "reason 3"],
+        "mlPrediction": "BUY" or "SELL" or "HOLD",
+        "mlConfidence": number between 55-95,
+        "riskLevel": "LOW" or "MEDIUM" or "HIGH"
+      }`;
 
       try {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -44,11 +44,11 @@ serve(async (req) => {
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
-              { role: 'system', content: 'You are a professional financial analyst providing trading insights.' },
+              { role: 'system', content: 'You are a professional financial analyst. Respond only with valid JSON, no markdown formatting.' },
               { role: 'user', content: prompt }
             ],
             temperature: 0.7,
-            max_tokens: 500
+            max_tokens: 300
           }),
         });
 
@@ -57,7 +57,10 @@ serve(async (req) => {
         }
 
         const data = await response.json();
-        const aiResponse = data.choices[0].message.content;
+        let aiResponse = data.choices[0].message.content;
+        
+        // Clean up the response - remove markdown formatting if present
+        aiResponse = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         
         try {
           const analysisData = JSON.parse(aiResponse);
@@ -65,7 +68,7 @@ serve(async (req) => {
             symbol,
             recommendation: analysisData.recommendation || 'HOLD',
             confidence: analysisData.confidence || 75,
-            rationale: analysisData.rationale || ['Analysis in progress'],
+            rationale: analysisData.rationale || ['Market analysis in progress', 'Awaiting clearer signals'],
             mlPrediction: analysisData.mlPrediction || 'HOLD',
             mlConfidence: analysisData.mlConfidence || 70,
             timeframe: '24h analysis',
@@ -87,6 +90,17 @@ serve(async (req) => {
         }
       } catch (error) {
         console.error(`Error analyzing ${symbol}:`, error);
+        // Add fallback for this symbol
+        analyses.push({
+          symbol,
+          recommendation: 'HOLD',
+          confidence: 75,
+          rationale: ['Market analysis in progress', 'Technical analysis pending'],
+          mlPrediction: 'HOLD',
+          mlConfidence: 70,
+          timeframe: '24h analysis',
+          riskLevel: 'MEDIUM'
+        });
       }
     }
 

@@ -26,15 +26,49 @@ const MarketData = () => {
       setError(null);
       
       const { data, error } = await supabase.functions.invoke('market-data', {
-        body: { symbols: ['DJI', 'IXIC', 'EURUSD'] }
+        body: { symbols: ['SPY', 'QQQ', 'EUR/USD'] }
       });
 
       if (error) {
         throw error;
       }
 
-      if (data?.data) {
+      if (data?.data && data.data.length > 0) {
         setMarketData(data.data);
+      } else {
+        // Fallback data if API fails
+        setMarketData([
+          {
+            symbol: 'US30',
+            name: 'S&P 500 ETF (SPY)',
+            price: 485.73,
+            change: 2.45,
+            changePercent: 0.51,
+            volume: '45.2M',
+            high: 487.12,
+            low: 483.89
+          },
+          {
+            symbol: 'US100',
+            name: 'NASDAQ 100 ETF (QQQ)',
+            price: 442.15,
+            change: -1.23,
+            changePercent: -0.28,
+            volume: '32.1M',
+            high: 444.67,
+            low: 441.45
+          },
+          {
+            symbol: 'EUR/USD',
+            name: 'Euro to US Dollar',
+            price: 1.0845,
+            change: 0.0012,
+            changePercent: 0.11,
+            volume: '45.2B',
+            high: 1.0867,
+            low: 1.0832
+          }
+        ]);
       }
     } catch (err) {
       console.error('Error fetching market data:', err);
@@ -43,23 +77,23 @@ const MarketData = () => {
       setMarketData([
         {
           symbol: 'US30',
-          name: 'Dow Jones Industrial Average',
-          price: 37420.45,
-          change: 245.67,
-          changePercent: 0.66,
-          volume: '2.4M',
-          high: 37485.23,
-          low: 37155.89
+          name: 'S&P 500 ETF (SPY)',
+          price: 485.73,
+          change: 2.45,
+          changePercent: 0.51,
+          volume: '45.2M',
+          high: 487.12,
+          low: 483.89
         },
         {
           symbol: 'US100',
-          name: 'NASDAQ 100',
-          price: 16890.23,
-          change: -89.45,
-          changePercent: -0.53,
-          volume: '1.8M',
-          high: 16945.67,
-          low: 16820.12
+          name: 'NASDAQ 100 ETF (QQQ)',
+          price: 442.15,
+          change: -1.23,
+          changePercent: -0.28,
+          volume: '32.1M',
+          high: 444.67,
+          low: 441.45
         },
         {
           symbol: 'EUR/USD',
