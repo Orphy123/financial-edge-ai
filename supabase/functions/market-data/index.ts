@@ -14,7 +14,7 @@ const SUPPORTED_SYMBOLS = {
   'SPY': 'SPDR S&P 500 ETF',
   'QQQ': 'Invesco QQQ ETF',
   'DIA': 'SPDR Dow Jones ETF',
-  // Forex
+  // Forex (Finnhub format)
   'EUR/USD': 'Euro to US Dollar',
   'GBP/USD': 'British Pound to US Dollar',
   'USD/JPY': 'US Dollar to Japanese Yen',
@@ -84,6 +84,88 @@ const generateFallbackHistoricalData = (symbol: string, dataPoints: number = 100
   return data.reverse();
 };
 
+const fetchFinnhubQuote = async (symbol: string, apiKey: string) => {
+  try {
+    const response = await fetch(
+      `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`,
+      { timeout: 5000 }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    // Finnhub returns: c (current), h (high), l (low), o (open), pc (previous close), t (timestamp)
+    if (data.c && data.c > 0) {
+      const change = data.c - data.pc;
+      const changePercent = (change / data.pc) * 100;
+      
+      return {
+        symbol: symbol,
+        name: SUPPORTED_SYMBOLS[symbol] || symbol,
+        price: parseFloat(data.c.toFixed(symbol.includes('/') ? 4 : 2)),
+        change: parseFloat(change.toFixed(2)),
+        changePercent: parseFloat(changePercent.toFixed(2)),
+        volume: '0', // Finnhub quote doesn't include volume
+        high: parseFloat(data.h.toFixed(symbol.includes('/') ? 4 : 2)),
+        low: parseFloat(data.l.toFixed(symbol.includes('/') ? 4 : 2)),
+        open: parseFloat(data.o.toFixed(symbol.includes('/') ? 4 : 2)),
+        timestamp: new Date(data.t * 1000).toISOString()
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Error fetching Finnhub quote for ${symbol}:`, error);
+    return null;
+  }
+};
+
+const fetchFinnhubCandles = async (symbol: string, resolution: string, from: number, to: number, apiKey: string) => {
+  try {
+    const response = await fetch(
+      `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=${resolution}&from=${from}&to=${to}&token=${apiKey}`,
+      { timeout: 10000 }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.s === 'no_data' || data.s === 'error') {
+      throw new Error('No data available');
+    }
+
+    if (data.c && data.c.length > 0) {
+      const chartData = [];
+      for (let i = 0; i < data.c.length; i++) {
+        chartData.push({
+          date: new Date(data.t[i] * 1000).toISOString(),
+          open: parseFloat(data.o[i]),
+          high: parseFloat(data.h[i]),
+          low: parseFloat(data.l[i]),
+          close: parseFloat(data.c[i]),
+          volume: parseInt(data.v[i] || 0)
+        });
+      }
+      return chartData;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Error fetching Finnhub candles for ${symbol}:`, error);
+    return null;
+  }
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -93,11 +175,11 @@ serve(async (req) => {
     const { symbols, symbol, timeframe = '1day', interval = '1min' } = await req.json();
     console.log('Request params:', { symbols, symbol, timeframe, interval });
     
-    const twelveDataKey = Deno.env.get('TWELVEDATA_API_KEY');
+    const finnhubKey = Deno.env.get('FINNHUB_API_KEY');
     
     // If requesting specific symbol with timeframe, get historical data
     if (symbol && timeframe) {
-      return await getHistoricalData(symbol, timeframe, interval, twelveDataKey);
+      return await getHistoricalData(symbol, timeframe, interval, finnhubKey);
     }
 
     // Otherwise get real-time quotes for multiple symbols
@@ -105,46 +187,21 @@ serve(async (req) => {
     const results = [];
     let apiSuccess = false;
 
-    if (twelveDataKey) {
-      for (const sym of symbolList.slice(0, 3)) { // Limit to 3 symbols to conserve API calls
-        try {
-          console.log(`Attempting to fetch data for ${sym}`);
-          
-          const response = await fetch(
-            `https://api.twelvedata.com/quote?symbol=${sym}&apikey=${twelveDataKey}`,
-            { timeout: 5000 }
-          );
-          
-          if (!response.ok) {
-            console.error(`HTTP error for ${sym}: ${response.status}`);
-            continue;
-          }
-
-          const data = await response.json();
-          
-          if (data.status === 'error') {
-            console.error(`API error for ${sym}:`, data.message);
-            continue;
-          }
-
-          if (data.close || data.price) {
-            results.push({
-              symbol: sym,
-              name: SUPPORTED_SYMBOLS[sym] || sym,
-              price: parseFloat(data.close || data.price || 0),
-              change: parseFloat(data.change || 0),
-              changePercent: parseFloat(data.percent_change || 0),
-              volume: data.volume || '0',
-              high: parseFloat(data.high || data.price || 0),
-              low: parseFloat(data.low || data.price || 0),
-              open: parseFloat(data.open || data.price || 0),
-              timestamp: data.datetime || new Date().toISOString()
-            });
-            apiSuccess = true;
-          }
-        } catch (error) {
-          console.error(`Error processing ${sym}:`, error);
+    if (finnhubKey) {
+      // Limit to 5 symbols to avoid rate limits
+      for (const sym of symbolList.slice(0, 5)) {
+        console.log(`Attempting to fetch data for ${sym}`);
+        
+        const quote = await fetchFinnhubQuote(sym, finnhubKey);
+        if (quote) {
+          results.push(quote);
+          apiSuccess = true;
+        } else {
+          console.log(`Failed to fetch data for ${sym}, using fallback`);
         }
+        
+        // Small delay to avoid hitting rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
@@ -182,38 +239,50 @@ serve(async (req) => {
 async function getHistoricalData(symbol: string, timeframe: string, interval: string, apiKey: string | undefined) {
   console.log(`Getting historical data for ${symbol}, timeframe: ${timeframe}, interval: ${interval}`);
   
-  // Try real API first if key is available
+  // Try Finnhub API first if key is available
   if (apiKey) {
     try {
-      const response = await fetch(
-        `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${apiKey}`,
-        { timeout: 10000 }
-      );
+      // Map timeframes to Finnhub resolution and time range
+      const now = Math.floor(Date.now() / 1000);
+      let from = now;
+      let resolution = '1';
       
-      if (response.ok) {
-        const data = await response.json();
+      switch (timeframe) {
+        case '1D':
+          from = now - (24 * 60 * 60); // 1 day ago
+          resolution = '5'; // 5-minute intervals
+          break;
+        case '1W':
+          from = now - (7 * 24 * 60 * 60); // 1 week ago
+          resolution = '30'; // 30-minute intervals
+          break;
+        case '1M':
+          from = now - (30 * 24 * 60 * 60); // 1 month ago
+          resolution = '60'; // 1-hour intervals
+          break;
+        case '3M':
+          from = now - (90 * 24 * 60 * 60); // 3 months ago
+          resolution = 'D'; // Daily intervals
+          break;
+        case '1Y':
+          from = now - (365 * 24 * 60 * 60); // 1 year ago
+          resolution = 'D'; // Daily intervals
+          break;
+      }
+      
+      const chartData = await fetchFinnhubCandles(symbol, resolution, from, now, apiKey);
+      
+      if (chartData && chartData.length > 0) {
+        console.log(`Successfully fetched ${chartData.length} data points for ${symbol}`);
         
-        if (data.status !== 'error' && data.values && data.values.length > 0) {
-          const chartData = data.values.map((item: any) => ({
-            date: item.datetime,
-            open: parseFloat(item.open),
-            high: parseFloat(item.high),
-            low: parseFloat(item.low),
-            close: parseFloat(item.close),
-            volume: parseInt(item.volume || 0)
-          })).reverse();
-
-          console.log(`Successfully fetched ${chartData.length} data points for ${symbol}`);
-          
-          return new Response(JSON.stringify({ 
-            symbol,
-            data: chartData,
-            meta: data.meta,
-            usingFallback: false
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
+        return new Response(JSON.stringify({ 
+          symbol,
+          data: chartData,
+          meta: { symbol, interval: resolution, exchange: 'Finnhub' },
+          usingFallback: false
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     } catch (error) {
       console.error('Error fetching real historical data:', error);
