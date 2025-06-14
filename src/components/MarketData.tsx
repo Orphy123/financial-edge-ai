@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,36 +15,51 @@ interface MarketItem {
   low: number;
 }
 
+interface ApiResponse {
+  data: MarketItem[];
+  usingFallback?: boolean;
+  message?: string;
+}
+
 const MarketData = () => {
   const [marketData, setMarketData] = useState<MarketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   const fetchMarketData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Featured symbols for the main dashboard
       const featuredSymbols = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'EUR/USD', 'BTC/USD'];
       
-      const { data, error } = await supabase.functions.invoke('market-data', {
+      const { data, error: functionError } = await supabase.functions.invoke('market-data', {
         body: { symbols: featuredSymbols }
       });
 
-      if (error) {
-        throw error;
+      if (functionError) {
+        throw new Error(`Function error: ${functionError.message}`);
       }
 
-      if (data?.data && data.data.length > 0) {
-        setMarketData(data.data);
+      const response = data as ApiResponse;
+      
+      if (response?.data && response.data.length > 0) {
+        setMarketData(response.data);
+        setUsingFallback(response.usingFallback || false);
+        
+        if (response.usingFallback && response.message) {
+          setError(response.message);
+        }
       } else {
         throw new Error('No market data available');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching market data:', err);
-      setError('Failed to load market data - API may be rate limited');
-      // Minimal fallback for demo
+      setError('Failed to load market data');
+      setUsingFallback(true);
+      
+      // Minimal fallback for complete failure
       setMarketData([
         {
           symbol: 'SPY',
@@ -95,9 +111,25 @@ const MarketData = () => {
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="bg-yellow-900/20 border border-yellow-400/30 rounded-lg p-3">
-          <p className="text-yellow-400 text-sm">{error}</p>
+      {(error || usingFallback) && (
+        <div className={`border rounded-lg p-3 ${
+          usingFallback ? 'bg-blue-900/20 border-blue-400/30' : 'bg-yellow-900/20 border-yellow-400/30'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {usingFallback ? (
+              <WifiOff className="h-4 w-4 text-blue-400" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 text-yellow-400" />
+            )}
+            <p className={`text-sm ${usingFallback ? 'text-blue-400' : 'text-yellow-400'}`}>
+              {usingFallback ? 'Using simulated data - API limits reached' : error}
+            </p>
+            {usingFallback && (
+              <div className="ml-auto">
+                <Wifi className="h-4 w-4 text-blue-400 opacity-50" />
+              </div>
+            )}
+          </div>
         </div>
       )}
       
@@ -107,7 +139,10 @@ const MarketData = () => {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center justify-between text-white">
                 <span className="text-xl font-bold">{item.symbol}</span>
-                <Activity className="h-5 w-5 text-blue-400" />
+                <div className="flex items-center space-x-1">
+                  <Activity className="h-5 w-5 text-blue-400" />
+                  {usingFallback && <WifiOff className="h-4 w-4 text-blue-400/50" />}
+                </div>
               </CardTitle>
               <p className="text-gray-400 text-sm">{item.name}</p>
             </CardHeader>
