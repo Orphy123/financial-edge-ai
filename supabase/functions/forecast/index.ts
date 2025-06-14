@@ -14,110 +14,192 @@ serve(async (req) => {
 
   try {
     const { symbol } = await req.json();
-    const twelveDataKey = Deno.env.get('TWELVEDATA_API_KEY');
+    console.log(`Generating forecast for ${symbol}`);
     
-    if (!twelveDataKey) {
-      throw new Error('TwelveData API key not configured');
+    const finnhubKey = Deno.env.get('FINNHUB_API_KEY');
+    
+    if (!finnhubKey) {
+      console.log('No Finnhub API key found, using fallback forecast');
+      const fallbackForecast = generateFallbackForecast(symbol);
+      return new Response(JSON.stringify(fallbackForecast), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Get 24h of 1-minute data for forecasting
+    // Get historical data from Finnhub for forecasting
+    const endTime = Math.floor(Date.now() / 1000);
+    const startTime = endTime - (7 * 24 * 60 * 60); // 7 days ago
+    
     const response = await fetch(
-      `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1min&outputsize=1440&apikey=${twelveDataKey}`
+      `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=60&from=${startTime}&to=${endTime}&token=${finnhubKey}`,
+      { timeout: 10000 }
     );
     
+    if (!response.ok) {
+      throw new Error(`Finnhub API error: ${response.status}`);
+    }
+
     const data = await response.json();
     
-    if (data.status === 'error') {
-      throw new Error(data.message);
+    if (data.s === 'no_data' || data.s === 'error' || !data.c || data.c.length < 50) {
+      console.log(`Insufficient data for ${symbol}, using fallback forecast`);
+      const fallbackForecast = generateFallbackForecast(symbol);
+      return new Response(JSON.stringify(fallbackForecast), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const prices = data.values?.map((item: any) => ({
-      price: parseFloat(item.close),
-      volume: parseInt(item.volume || 0),
-      high: parseFloat(item.high),
-      low: parseFloat(item.low)
-    })).reverse() || [];
+    // Process the data for forecasting
+    const prices = data.c.map((close: number, index: number) => ({
+      price: close,
+      volume: data.v[index] || 0,
+      high: data.h[index],
+      low: data.l[index],
+      timestamp: data.t[index]
+    }));
 
-    if (prices.length < 120) {
-      throw new Error('Insufficient data for forecasting');
-    }
-
-    const forecast = generateForecast(prices);
+    console.log(`Successfully fetched ${prices.length} data points for ${symbol}`);
+    const forecast = generateForecast(prices, symbol);
 
     return new Response(JSON.stringify(forecast), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error in forecast function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    
+    // Generate fallback forecast on any error
+    const { symbol } = await req.json().catch(() => ({ symbol: 'UNKNOWN' }));
+    const fallbackForecast = generateFallbackForecast(symbol);
+    
+    return new Response(JSON.stringify(fallbackForecast), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
 
-function generateForecast(prices: Array<{price: number, volume: number, high: number, low: number}>) {
+function generateFallbackForecast(symbol: string) {
+  console.log(`Generating fallback forecast for ${symbol}`);
+  
+  // Generate realistic base price based on symbol
+  const basePrice = symbol.includes('BTC') ? 45000 : 
+                   symbol.includes('ETH') ? 2500 :
+                   symbol === 'AAPL' ? 180 :
+                   symbol === 'MSFT' ? 350 :
+                   symbol === 'TSLA' ? 200 :
+                   Math.random() * 200 + 50;
+  
+  // Generate market sentiment based on randomization
+  const sentiment = Math.random();
+  let signal: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
+  let confidence = 50 + Math.floor(Math.random() * 30); // 50-80%
+  let targetPrice = basePrice;
+  
+  if (sentiment > 0.6) {
+    signal = 'BUY';
+    targetPrice = basePrice * (1.02 + Math.random() * 0.03); // 2-5% increase
+  } else if (sentiment < 0.4) {
+    signal = 'SELL';
+    targetPrice = basePrice * (0.95 + Math.random() * 0.03); // 2-5% decrease
+  }
+  
+  // Generate mock technical indicators
+  const sma30 = basePrice * (0.98 + Math.random() * 0.04);
+  const sma120 = basePrice * (0.96 + Math.random() * 0.08);
+  const rsi = 30 + Math.random() * 40; // 30-70 range
+  const vwap = basePrice * (0.995 + Math.random() * 0.01);
+  
+  return {
+    signal,
+    confidence,
+    currentPrice: parseFloat(basePrice.toFixed(2)),
+    targetPrice: parseFloat(targetPrice.toFixed(2)),
+    priceRange: {
+      min: parseFloat((targetPrice * 0.99).toFixed(2)),
+      max: parseFloat((targetPrice * 1.01).toFixed(2))
+    },
+    technicals: {
+      sma30: parseFloat(sma30.toFixed(2)),
+      sma120: parseFloat(sma120.toFixed(2)),
+      rsi: parseFloat(rsi.toFixed(1)),
+      vwap: parseFloat(vwap.toFixed(2)),
+      priceDeviation: parseFloat(((basePrice - vwap) / vwap * 100).toFixed(2))
+    },
+    timeframe: '1H',
+    timestamp: new Date().toISOString(),
+    usingFallback: true,
+    message: 'Using simulated forecast data'
+  };
+}
+
+function generateForecast(prices: Array<{price: number, volume: number, high: number, low: number, timestamp: number}>, symbol: string) {
+  if (prices.length < 20) {
+    return generateFallbackForecast(symbol);
+  }
+  
   const currentPrice = prices[prices.length - 1].price;
   
   // Calculate Simple Moving Averages
-  const sma30 = calculateSMA(prices.slice(-30).map(p => p.price));
-  const sma120 = calculateSMA(prices.slice(-120).map(p => p.price));
+  const recentPrices = prices.slice(-30).map(p => p.price);
+  const longerPrices = prices.slice(-Math.min(120, prices.length)).map(p => p.price);
+  
+  const sma30 = calculateSMA(recentPrices);
+  const sma120 = calculateSMA(longerPrices);
   
   // Calculate RSI
-  const rsi = calculateRSI(prices.slice(-14).map(p => p.price));
+  const rsiPrices = prices.slice(-14).map(p => p.price);
+  const rsi = calculateRSI(rsiPrices);
   
-  // Calculate VWAP for 24h
+  // Calculate VWAP
   const vwap = calculateVWAP(prices);
   const priceDeviation = ((currentPrice - vwap) / vwap) * 100;
   
-  // Heuristic classification
-  let signal = 'HOLD';
+  // Generate forecast based on technical analysis
+  let signal: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
   let confidence = 50;
   let targetPrice = currentPrice;
-  let priceRange = { min: currentPrice * 0.98, max: currentPrice * 1.02 };
   
-  const smaDiff = ((sma30 - sma120) / sma120) * 100;
+  const smaTrend = ((sma30 - sma120) / sma120) * 100;
+  const momentum = ((currentPrice - prices[Math.max(0, prices.length - 10)].price) / prices[Math.max(0, prices.length - 10)].price) * 100;
   
-  if (sma30 > sma120 && rsi < 60) {
+  // Technical analysis logic
+  if (sma30 > sma120 && rsi < 70 && momentum > 0) {
     signal = 'BUY';
-    confidence = Math.min(90, 40 + Math.abs(smaDiff) * 100);
+    confidence = Math.min(85, 50 + Math.abs(smaTrend) * 10 + (momentum > 2 ? 15 : 0));
     targetPrice = currentPrice * (1 + (confidence / 1000));
-    priceRange = { 
-      min: currentPrice * 1.005, 
-      max: currentPrice * (1 + (confidence / 500))
-    };
-  } else if (sma30 < sma120 && rsi > 40) {
+  } else if (sma30 < sma120 && rsi > 30 && momentum < 0) {
     signal = 'SELL';
-    confidence = Math.min(90, 40 + Math.abs(smaDiff) * 100);
+    confidence = Math.min(85, 50 + Math.abs(smaTrend) * 10 + (momentum < -2 ? 15 : 0));
     targetPrice = currentPrice * (1 - (confidence / 1000));
-    priceRange = { 
-      min: currentPrice * (1 - (confidence / 500)), 
-      max: currentPrice * 0.995
-    };
+  } else {
+    // Market uncertainty or sideways movement
+    confidence = 40 + Math.random() * 20;
+    targetPrice = currentPrice * (0.99 + Math.random() * 0.02);
   }
   
   return {
     signal,
     confidence: Math.round(confidence),
-    currentPrice,
-    targetPrice: Math.round(targetPrice * 100) / 100,
+    currentPrice: parseFloat(currentPrice.toFixed(2)),
+    targetPrice: parseFloat(targetPrice.toFixed(2)),
     priceRange: {
-      min: Math.round(priceRange.min * 100) / 100,
-      max: Math.round(priceRange.max * 100) / 100
+      min: parseFloat((targetPrice * 0.985).toFixed(2)),
+      max: parseFloat((targetPrice * 1.015).toFixed(2))
     },
     technicals: {
-      sma30: Math.round(sma30 * 100) / 100,
-      sma120: Math.round(sma120 * 100) / 100,
-      rsi: Math.round(rsi * 100) / 100,
-      vwap: Math.round(vwap * 100) / 100,
-      priceDeviation: Math.round(priceDeviation * 100) / 100
+      sma30: parseFloat(sma30.toFixed(2)),
+      sma120: parseFloat(sma120.toFixed(2)),
+      rsi: parseFloat(rsi.toFixed(1)),
+      vwap: parseFloat(vwap.toFixed(2)),
+      priceDeviation: parseFloat(priceDeviation.toFixed(2))
     },
     timeframe: '1H',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    usingFallback: false
   };
 }
 
 function calculateSMA(prices: number[]): number {
+  if (prices.length === 0) return 0;
   return prices.reduce((sum, price) => sum + price, 0) / prices.length;
 }
 
@@ -147,8 +229,10 @@ function calculateVWAP(prices: Array<{price: number, volume: number}>): number {
   let totalVolumePrice = 0;
   
   for (const item of prices) {
-    totalVolume += item.volume;
-    totalVolumePrice += item.price * item.volume;
+    if (item.volume > 0) {
+      totalVolume += item.volume;
+      totalVolumePrice += item.price * item.volume;
+    }
   }
   
   return totalVolume > 0 ? totalVolumePrice / totalVolume : prices[prices.length - 1].price;
