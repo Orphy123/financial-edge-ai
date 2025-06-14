@@ -1,12 +1,30 @@
 
 import React from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Link } from 'react-router-dom';
 import MarketData from '@/components/MarketData';
 import NewsPanel from '@/components/NewsPanel';
 import AIAnalysis from '@/components/AIAnalysis';
 import ApiKeyManager from '@/components/ApiKeyManager';
-import { TrendingUp } from 'lucide-react';
+import Watchlist from '@/components/Watchlist';
+import AnalysisHistory from '@/components/AnalysisHistory';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, LogIn, LogOut, User } from 'lucide-react';
 
 const Index = () => {
+  const { user, signOut, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <TrendingUp className="h-12 w-12 text-blue-400 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-400">Loading Financial Mastery...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
@@ -21,12 +39,44 @@ const Index = () => {
               <p className="text-gray-400 text-sm">AI-Powered Trading Assistant</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-400">Real-time Market Data</p>
-            <div className="flex items-center space-x-2">
-              <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse" />
-              <span className="text-green-400 text-sm font-medium">Live</span>
+          
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-sm text-gray-400">Real-time Market Data</p>
+              <div className="flex items-center space-x-2">
+                <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-green-400 text-sm font-medium">Live</span>
+              </div>
             </div>
+            
+            {user ? (
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 text-gray-300">
+                  <User className="h-4 w-4" />
+                  <span className="text-sm">{user.email}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={signOut}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <Link to="/auth">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-400 hover:text-white"
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Sign In
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -41,6 +91,14 @@ const Index = () => {
             </h2>
             <MarketData />
           </section>
+
+          {/* User-specific content */}
+          {user && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Watchlist />
+              <AnalysisHistory />
+            </div>
+          )}
 
           {/* Main Analysis Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
