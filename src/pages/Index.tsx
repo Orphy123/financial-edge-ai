@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import MarketData from '@/components/MarketData';
@@ -7,11 +7,24 @@ import NewsPanel from '@/components/NewsPanel';
 import AIAnalysis from '@/components/AIAnalysis';
 import Watchlist from '@/components/Watchlist';
 import AnalysisHistory from '@/components/AnalysisHistory';
+import MarketSearch from '@/components/MarketSearch';
+import InteractiveChart from '@/components/InteractiveChart';
+import AIChatAssistant from '@/components/AIChatAssistant';
+import MarketPredictions from '@/components/MarketPredictions';
+import SymbolNews from '@/components/SymbolNews';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, LogIn, LogOut, User } from 'lucide-react';
 
 const Index = () => {
   const { user, signOut, loading } = useAuth();
+  const [selectedSymbol, setSelectedSymbol] = useState<{ symbol: string; name: string } | null>(null);
+  const [currentPrice, setCurrentPrice] = useState(0);
+
+  const handleSymbolSelect = (symbol: string, name: string) => {
+    setSelectedSymbol({ symbol, name });
+    // Generate a mock current price
+    setCurrentPrice(50 + Math.random() * 200);
+  };
 
   if (loading) {
     return (
@@ -40,14 +53,6 @@ const Index = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-sm text-gray-400">Real-time Market Data</p>
-              <div className="flex items-center space-x-2">
-                <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-green-400 text-sm font-medium">Live</span>
-              </div>
-            </div>
-            
             {user ? (
               <div className="flex items-center space-x-3">
                 <div className="flex items-center space-x-2 text-gray-300">
@@ -82,35 +87,80 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="space-y-8">
-          {/* Market Data Section */}
+          {/* Market Search Section */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
-              <span>Live Market Data</span>
-              <div className="h-1 w-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded" />
-            </h2>
-            <MarketData />
+            <MarketSearch onSymbolSelect={handleSymbolSelect} />
           </section>
 
-          {/* User-specific content */}
-          {user && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Watchlist />
-              <AnalysisHistory />
+          {selectedSymbol ? (
+            /* Symbol-specific analysis */
+            <div className="space-y-8">
+              {/* Interactive Chart */}
+              <section>
+                <InteractiveChart 
+                  symbol={selectedSymbol.symbol} 
+                  name={selectedSymbol.name} 
+                />
+              </section>
+
+              {/* AI Predictions */}
+              <section>
+                <MarketPredictions 
+                  symbol={selectedSymbol.symbol} 
+                  currentPrice={currentPrice} 
+                />
+              </section>
+
+              {/* AI Chat and Symbol News */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <section>
+                  <AIChatAssistant 
+                    symbol={selectedSymbol.symbol} 
+                    name={selectedSymbol.name} 
+                  />
+                </section>
+                <section>
+                  <SymbolNews 
+                    symbol={selectedSymbol.symbol} 
+                    name={selectedSymbol.name} 
+                  />
+                </section>
+              </div>
+            </div>
+          ) : (
+            /* Default dashboard */
+            <div className="space-y-8">
+              {/* Market Data Section */}
+              <section>
+                <h2 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
+                  <span>Live Market Data</span>
+                  <div className="h-1 w-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded" />
+                </h2>
+                <MarketData />
+              </section>
+
+              {/* User-specific content */}
+              {user && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <Watchlist />
+                  <AnalysisHistory />
+                </div>
+              )}
+
+              {/* Main Analysis Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* News Panel */}
+                <section>
+                  <NewsPanel />
+                </section>
+
+                {/* AI Analysis */}
+                <section>
+                  <AIAnalysis />
+                </section>
+              </div>
             </div>
           )}
-
-          {/* Main Analysis Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* News Panel */}
-            <section>
-              <NewsPanel />
-            </section>
-
-            {/* AI Analysis */}
-            <section>
-              <AIAnalysis />
-            </section>
-          </div>
         </div>
       </main>
 
