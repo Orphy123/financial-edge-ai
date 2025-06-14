@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,15 +30,49 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
   const [showIndicators, setShowIndicators] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const [currentPrice, setCurrentPrice] = useState(0);
+  const [priceChange, setPriceChange] = useState({ change: 0, percent: 0 });
+  const [usingFallback, setUsingFallback] = useState(false);
 
   useEffect(() => {
     fetchRealChartData();
   }, [symbol, timeframe]);
 
-  const generateFallbackData = () => {
+  const fetchCurrentPrice = async () => {
+    try {
+      // Get current price from market-data function
+      const { data, error: functionError } = await supabase.functions.invoke('market-data', {
+        body: { symbols: [symbol] }
+      });
+
+      if (!functionError && data?.data && data.data.length > 0) {
+        const symbolData = data.data[0];
+        setCurrentPrice(symbolData.price);
+        setPriceChange({ 
+          change: symbolData.change, 
+          percent: symbolData.changePercent 
+        });
+        return symbolData.price;
+      }
+    } catch (error) {
+      console.error('Error fetching current price:', error);
+    }
+    
+    // Fallback price generation if API fails
+    const fallbackPrice = symbol.includes('BTC') ? 45000 : 
+                         symbol.includes('ETH') ? 2500 :
+                         symbol === 'AAPL' ? 180 :
+                         symbol === 'MSFT' ? 475 :
+                         symbol === 'TSLA' ? 200 :
+                         Math.random() * 200 + 50;
+    
+    setCurrentPrice(fallbackPrice);
+    setPriceChange({ change: 0, percent: 0 });
+    return fallbackPrice;
+  };
+
+  const generateFallbackData = (basePrice: number) => {
     const data: ChartData[] = [];
-    const basePrice = 100 + Math.random() * 400;
     const dataPoints = timeframe === '1D' ? 48 : timeframe === '1W' ? 168 : 720;
     
     for (let i = 0; i < dataPoints; i++) {
@@ -47,13 +80,13 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
       const interval = timeframe === '1D' ? 30 : timeframe === '1W' ? 60 : 120;
       date.setMinutes(date.getMinutes() - (dataPoints - i) * interval);
       
-      const volatility = 0.02;
+      const volatility = 0.01; // Reduced volatility for more realistic data
       const change = (Math.random() - 0.5) * volatility;
       const price = i === 0 ? basePrice : data[i-1].close * (1 + change);
       
       const open = i === 0 ? price : data[i-1].close;
-      const high = price * (1 + Math.random() * 0.01);
-      const low = price * (1 - Math.random() * 0.01);
+      const high = price * (1 + Math.random() * 0.005);
+      const low = price * (1 - Math.random() * 0.005);
       const volume = Math.floor(Math.random() * 1000000) + 100000;
 
       data.push({
@@ -76,6 +109,9 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
     
     try {
       console.log(`Fetching chart data for ${symbol} with timeframe ${timeframe}`);
+      
+      // First get the current price
+      const currentPriceValue = await fetchCurrentPrice();
       
       const intervalMap: Record<string, string> = {
         '1D': '5min',
@@ -132,7 +168,10 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
         });
 
         setChartData(processedData);
-        setRetryCount(0);
+        setUsingFallback(data.usingFallback || false);
+        if (data.usingFallback) {
+          setError('Using simulated historical data - API limits reached');
+        }
       } else {
         throw new Error('No valid data received from API');
       }
@@ -140,10 +179,10 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
       console.error('Error fetching chart data:', err);
       
       // Use fallback data but show warning
-      const fallbackData = generateFallbackData();
+      const fallbackData = generateFallbackData(currentPrice);
       setChartData(fallbackData);
       setError(`Using simulated data: ${err.message}`);
-      setRetryCount(prev => prev + 1);
+      setUsingFallback(true);
     } finally {
       setLoading(false);
     }
@@ -195,22 +234,7 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
     return 100 - (100 / (1 + rs));
   };
 
-  const getCurrentPrice = () => {
-    if (chartData.length === 0) return 0;
-    return chartData[chartData.length - 1].close;
-  };
-
-  const getPriceChange = () => {
-    if (chartData.length < 2) return { change: 0, percent: 0 };
-    const current = chartData[chartData.length - 1].close;
-    const previous = chartData[0].close;
-    const change = current - previous;
-    const percent = (change / previous) * 100;
-    return { change, percent };
-  };
-
   const timeframes = ['1D', '1W', '1M', '3M', '1Y'];
-  const priceChange = getPriceChange();
 
   if (loading) {
     return (
@@ -236,7 +260,7 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
             </CardTitle>
             <div className="flex items-center space-x-4 mt-2">
               <span className="text-2xl font-bold text-white">
-                ${getCurrentPrice().toFixed(2)}
+                ${currentPrice.toFixed(2)}
               </span>
               <div className={`flex items-center space-x-1 ${priceChange.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {priceChange.change >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
@@ -248,10 +272,10 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
                 </span>
               </div>
             </div>
-            {error && (
+            {(error || usingFallback) && (
               <div className="flex items-center space-x-2 mt-2 text-yellow-400 text-sm">
                 <AlertTriangle className="h-4 w-4" />
-                <span>{error}</span>
+                <span>{error || 'Using simulated historical data'}</span>
               </div>
             )}
           </div>
