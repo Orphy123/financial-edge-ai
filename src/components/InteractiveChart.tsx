@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, TrendingDown, BarChart3, Activity, RefreshCw, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, Activity, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ChartData {
@@ -29,10 +29,10 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
   const [chartType, setChartType] = useState('line');
   const [showIndicators, setShowIndicators] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [currentPrice, setCurrentPrice] = useState(0);
   const [priceChange, setPriceChange] = useState({ change: 0, percent: 0 });
   const [usingFallback, setUsingFallback] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRealChartData();
@@ -274,7 +274,7 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
             </div>
             {(error || usingFallback) && (
               <div className="flex items-center space-x-2 mt-2 text-yellow-400 text-sm">
-                <AlertTriangle className="h-4 w-4" />
+                {/* <AlertTriangle className="h-4 w-4" /> */}
                 <span>{error || 'Using simulated historical data'}</span>
               </div>
             )}
