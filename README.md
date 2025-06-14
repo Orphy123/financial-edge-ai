@@ -1,73 +1,99 @@
-# Welcome to your Lovable project
+# Financial Edge AI
 
-## Project info
+A sophisticated AI-powered trading assistant and market analysis platform that combines real-time market data, advanced analytics, and artificial intelligence to provide comprehensive trading insights.
 
-**URL**: https://lovable.dev/projects/f267ae41-fb42-40b4-8136-dff6d851088e
+## 🌟 Features
 
-## How can I edit this code?
+### Market Analysis
+- **Real-time Market Data**: Live tracking of market movements and key indicators
+- **Interactive Charts**: Advanced charting capabilities for technical analysis
+- **AI-Powered Forecasting**: Predictive analytics using machine learning models
+- **Market Search**: Quick access to any trading symbol with detailed information
 
-There are several ways of editing your application.
+### AI Assistant
+- **Intelligent Chat Interface**: Interactive AI assistant for market queries and analysis
+- **Real-time Analysis**: Instant insights and recommendations
+- **Historical Analysis**: Access to past predictions and their accuracy
 
-**Use Lovable**
+### Personalization
+- **Custom Watchlists**: Create and manage personalized watchlists
+- **Analysis History**: Track your past analyses and predictions
+- **User Authentication**: Secure login system for personalized experience
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/f267ae41-fb42-40b4-8136-dff6d851088e) and start prompting.
+### News & Information
+- **Symbol-specific News**: Relevant news articles for selected symbols
+- **Market News Panel**: Latest market updates and breaking news
+- **AI-powered News Analysis**: Sentiment analysis of market news
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🛠️ Technology Stack
 
-**Use your preferred IDE**
+- **Frontend**: React with TypeScript
+- **UI Framework**: shadcn-ui
+- **Styling**: Tailwind CSS
+- **Build Tool**: Vite
+- **Authentication**: Supabase
+- **Data Visualization**: Interactive charts and graphs
+- **AI Integration**: Advanced machine learning models for market analysis
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🚀 Getting Started
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Prerequisites
+- Node.js & npm (install with [nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
 
-Follow these steps:
+### Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to the project directory
+cd financial-edge-ai
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 🔒 Security
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- Secure authentication system
+- Protected API endpoints
+- Encrypted data transmission
+- Regular security updates
 
-**Use GitHub Codespaces**
+## 📱 Responsive Design
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+The application is fully responsive and works seamlessly across:
+- Desktop computers
+- Tablets
+- Mobile devices
 
-## What technologies are used for this project?
+## 🎯 Key Benefits
 
-This project is built with:
+1. **Data-Driven Decisions**: Make informed trading decisions with AI-powered insights
+2. **Time Efficiency**: Quick access to market data and analysis
+3. **Personalized Experience**: Customizable interface and watchlists
+4. **Real-time Updates**: Stay current with market movements
+5. **AI Assistance**: Get instant answers to your trading questions
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## ⚠️ Disclaimer
 
-## How can I deploy this project?
+This platform provides market analysis and insights but does not constitute financial advice. Users should conduct their own research and consult with financial advisors before making investment decisions.
 
-Simply open [Lovable](https://lovable.dev/projects/f267ae41-fb42-40b4-8136-dff6d851088e) and click on Share -> Publish.
+## 🔄 Updates and Maintenance
 
-## Can I connect a custom domain to my Lovable project?
+The platform is regularly updated with:
+- New features and improvements
+- Security patches
+- Performance optimizations
+- Market data accuracy enhancements
 
-Yes, you can!
+## 📞 Support
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+For support and inquiries, please contact the development team through the project's issue tracker.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## 📄 License
+
+This project is proprietary software. All rights reserved.
