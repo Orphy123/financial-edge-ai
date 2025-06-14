@@ -1,8 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Clock, TrendingUp, TrendingDown, Minus, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NewsItem {
   id: string;
@@ -16,38 +17,68 @@ interface NewsItem {
 }
 
 const NewsPanel = () => {
-  const [newsItems] = useState<NewsItem[]>([
-    {
-      id: '1',
-      title: 'Federal Reserve Signals Potential Rate Changes',
-      summary: 'Fed officials hint at possible monetary policy adjustments based on latest inflation data, potentially impacting USD strength.',
-      symbol: 'EUR/USD',
-      sentiment: 'bearish',
-      impact: 'high',
-      timestamp: '2 minutes ago',
-      confidence: 87
-    },
-    {
-      id: '2',
-      title: 'Tech Earnings Exceed Expectations',
-      summary: 'Major technology companies report strong quarterly results, driving optimism in the NASDAQ index.',
-      symbol: 'US100',
-      sentiment: 'bullish',
-      impact: 'high',
-      timestamp: '15 minutes ago',
-      confidence: 92
-    },
-    {
-      id: '3',
-      title: 'Manufacturing Data Shows Mixed Results',
-      summary: 'Latest manufacturing PMI data presents mixed signals for industrial stocks and the broader market.',
-      symbol: 'US30',
-      sentiment: 'neutral',
-      impact: 'medium',
-      timestamp: '32 minutes ago',
-      confidence: 73
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchNews = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { data, error } = await supabase.functions.invoke('financial-news');
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.data) {
+        setNewsItems(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching news:', err);
+      setError('Failed to load news');
+      // Fallback to mock data
+      setNewsItems([
+        {
+          id: '1',
+          title: 'Federal Reserve Signals Potential Rate Changes',
+          summary: 'Fed officials hint at possible monetary policy adjustments based on latest inflation data, potentially impacting USD strength.',
+          symbol: 'EUR/USD',
+          sentiment: 'bearish',
+          impact: 'high',
+          timestamp: '2 minutes ago',
+          confidence: 87
+        },
+        {
+          id: '2',
+          title: 'Tech Earnings Exceed Expectations',
+          summary: 'Major technology companies report strong quarterly results, driving optimism in the NASDAQ index.',
+          symbol: 'US100',
+          sentiment: 'bullish',
+          impact: 'high',
+          timestamp: '15 minutes ago',
+          confidence: 92
+        },
+        {
+          id: '3',
+          title: 'Manufacturing Data Shows Mixed Results',
+          summary: 'Latest manufacturing PMI data presents mixed signals for industrial stocks and the broader market.',
+          symbol: 'US30',
+          sentiment: 'neutral',
+          impact: 'medium',
+          timestamp: '32 minutes ago',
+          confidence: 73
+        }
+      ]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    fetchNews();
+  }, []);
 
   const getSentimentIcon = (sentiment: string) => {
     switch (sentiment) {
@@ -85,18 +116,36 @@ const NewsPanel = () => {
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
-        <CardTitle className="text-white flex items-center space-x-2">
-          <Clock className="h-5 w-5 text-blue-400" />
-          <span>Market News & Analysis</span>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white flex items-center space-x-2">
+            <Clock className="h-5 w-5 text-blue-400" />
+            <span>Market News & Analysis</span>
+          </CardTitle>
+          <Button
+            onClick={fetchNews}
+            disabled={loading}
+            size="sm"
+            variant="ghost"
+            className="text-gray-400 hover:text-white"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="bg-yellow-900/20 border border-yellow-400/30 rounded-lg p-3 mb-4">
+            <p className="text-yellow-400 text-sm">{error} - Showing cached data</p>
+          </div>
+        )}
+        
         <div className="space-y-4">
           {newsItems.map((item) => (
             <div
               key={item.id}
               className="p-4 bg-gray-800/50 rounded-lg border border-gray-750 hover:border-gray-600 transition-colors"
             >
+              
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-2">
                   <Badge className={getSentimentColor(item.sentiment)}>

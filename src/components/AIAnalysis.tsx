@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Brain, Target, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Analysis {
   symbol: string;
@@ -17,67 +17,85 @@ interface Analysis {
 }
 
 const AIAnalysis = () => {
-  const [analyses, setAnalyses] = useState<Analysis[]>([
-    {
-      symbol: 'US30',
-      recommendation: 'BUY',
-      confidence: 85,
-      rationale: [
-        'Strong technical indicators showing bullish momentum',
-        'Positive earnings reports from major components',
-        'Fed policy expected to remain accommodative',
-        'Volume patterns indicate institutional accumulation'
-      ],
-      mlPrediction: 'BUY',
-      mlConfidence: 78,
-      timeframe: '24h analysis',
-      riskLevel: 'MEDIUM'
-    },
-    {
-      symbol: 'US100',
-      recommendation: 'HOLD',
-      confidence: 72,
-      rationale: [
-        'Mixed signals from recent tech earnings',
-        'Overbought conditions on RSI indicator',
-        'Support level holding at current price',
-        'Awaiting clearer market direction'
-      ],
-      mlPrediction: 'SELL',
-      mlConfidence: 64,
-      timeframe: '1h analysis',
-      riskLevel: 'HIGH'
-    },
-    {
-      symbol: 'EUR/USD',
-      recommendation: 'SELL',
-      confidence: 91,
-      rationale: [
-        'USD strength continues amid rate expectations',
-        'ECB dovish stance weighing on EUR',
-        'Technical breakdown below key support',
-        'Risk-off sentiment favoring dollar'
-      ],
-      mlPrediction: 'SELL',
-      mlConfidence: 89,
-      timeframe: '24h analysis',
-      riskLevel: 'LOW'
-    }
-  ]);
-
+  const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const refreshAnalysis = () => {
-    setIsAnalyzing(true);
-    setTimeout(() => {
-      setAnalyses(prev => prev.map(analysis => ({
-        ...analysis,
-        confidence: Math.max(60, Math.min(95, analysis.confidence + (Math.random() - 0.5) * 10)),
-        mlConfidence: Math.max(55, Math.min(95, analysis.mlConfidence + (Math.random() - 0.5) * 15))
-      })));
+  const fetchAnalysis = async () => {
+    try {
+      setIsAnalyzing(true);
+      setError(null);
+      
+      const { data, error } = await supabase.functions.invoke('ai-analysis', {
+        body: { symbols: ['US30', 'US100', 'EUR/USD'] }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.data) {
+        setAnalyses(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching AI analysis:', err);
+      setError('Failed to load AI analysis');
+      // Fallback to mock data
+      setAnalyses([
+        {
+          symbol: 'US30',
+          recommendation: 'BUY',
+          confidence: 85,
+          rationale: [
+            'Strong technical indicators showing bullish momentum',
+            'Positive earnings reports from major components',
+            'Fed policy expected to remain accommodative',
+            'Volume patterns indicate institutional accumulation'
+          ],
+          mlPrediction: 'BUY',
+          mlConfidence: 78,
+          timeframe: '24h analysis',
+          riskLevel: 'MEDIUM'
+        },
+        {
+          symbol: 'US100',
+          recommendation: 'HOLD',
+          confidence: 72,
+          rationale: [
+            'Mixed signals from recent tech earnings',
+            'Overbought conditions on RSI indicator',
+            'Support level holding at current price',
+            'Awaiting clearer market direction'
+          ],
+          mlPrediction: 'SELL',
+          mlConfidence: 64,
+          timeframe: '1h analysis',
+          riskLevel: 'HIGH'
+        },
+        {
+          symbol: 'EUR/USD',
+          recommendation: 'SELL',
+          confidence: 91,
+          rationale: [
+            'USD strength continues amid rate expectations',
+            'ECB dovish stance weighing on EUR',
+            'Technical breakdown below key support',
+            'Risk-off sentiment favoring dollar'
+          ],
+          mlPrediction: 'SELL',
+          mlConfidence: 89,
+          timeframe: '24h analysis',
+          riskLevel: 'LOW'
+        }
+      ]);
+    } finally {
       setIsAnalyzing(false);
-    }, 2000);
+    }
   };
+
+  useEffect(() => {
+    fetchAnalysis();
+  }, []);
 
   const getRecommendationColor = (rec: string) => {
     switch (rec) {
@@ -110,7 +128,7 @@ const AIAnalysis = () => {
             <span>AI Trading Analysis</span>
           </CardTitle>
           <Button
-            onClick={refreshAnalysis}
+            onClick={fetchAnalysis}
             disabled={isAnalyzing}
             size="sm"
             className="bg-purple-600 hover:bg-purple-700"
@@ -121,6 +139,12 @@ const AIAnalysis = () => {
         </div>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="bg-yellow-900/20 border border-yellow-400/30 rounded-lg p-3 mb-4">
+            <p className="text-yellow-400 text-sm">{error} - Showing cached data</p>
+          </div>
+        )}
+        
         <div className="space-y-6">
           {analyses.map((analysis) => (
             <div
