@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, CandlestickChart } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { TrendingUp, TrendingDown, BarChart3, Activity } from 'lucide-react';
 
 interface ChartData {
@@ -137,12 +137,12 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
               Line
             </Button>
             <Button
-              variant={chartType === 'candlestick' ? 'default' : 'outline'}
+              variant={chartType === 'bar' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setChartType('candlestick')}
+              onClick={() => setChartType('bar')}
               className="text-xs"
             >
-              Candles
+              Bars
             </Button>
           </div>
         </div>
@@ -176,54 +176,82 @@ const InteractiveChart = ({ symbol, name }: InteractiveChartProps) => {
 
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#9CA3AF"
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="#9CA3AF"
-                  fontSize={12}
-                  domain={['dataMin - 5', 'dataMax + 5']}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #374151',
-                    borderRadius: '6px',
-                    color: '#F9FAFB'
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="price"
-                  stroke="#3B82F6"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                {showIndicators && (
-                  <>
-                    <Line
-                      type="monotone"
-                      dataKey="rsi"
-                      stroke="#F59E0B"
-                      strokeWidth={1}
-                      dot={false}
-                      strokeDasharray="5 5"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="macd"
-                      stroke="#10B981"
-                      strokeWidth={1}
-                      dot={false}
-                      strokeDasharray="3 3"
-                    />
-                  </>
-                )}
-              </LineChart>
+              {chartType === 'line' ? (
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#9CA3AF"
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="#9CA3AF"
+                    fontSize={12}
+                    domain={['dataMin - 5', 'dataMax + 5']}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1F2937',
+                      border: '1px solid #374151',
+                      borderRadius: '6px',
+                      color: '#F9FAFB'
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="price"
+                    stroke="#3B82F6"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  {showIndicators && (
+                    <>
+                      <Line
+                        type="monotone"
+                        dataKey="rsi"
+                        stroke="#F59E0B"
+                        strokeWidth={1}
+                        dot={false}
+                        strokeDasharray="5 5"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="macd"
+                        stroke="#10B981"
+                        strokeWidth={1}
+                        dot={false}
+                        strokeDasharray="3 3"
+                      />
+                    </>
+                  )}
+                </LineChart>
+              ) : (
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#9CA3AF"
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="#9CA3AF"
+                    fontSize={12}
+                    domain={['dataMin - 5', 'dataMax + 5']}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1F2937',
+                      border: '1px solid #374151',
+                      borderRadius: '6px',
+                      color: '#F9FAFB'
+                    }}
+                  />
+                  <Bar
+                    dataKey="volume"
+                    fill="#3B82F6"
+                  />
+                </BarChart>
+              )}
             </ResponsiveContainer>
           </div>
 
