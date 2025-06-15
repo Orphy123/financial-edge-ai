@@ -94,6 +94,4 @@ The platform is regularly updated with:
 
 For support and inquiries, please contact the development team through the project's issue tracker.
 
-## 📄 License
 
-This project is proprietary software. All rights reserved.
