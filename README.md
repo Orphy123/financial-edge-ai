@@ -65,7 +65,7 @@ npm run dev
 
 ## 📱 Responsive Design
 
-The application is fully responsive and works seamlessly across:
+The website is fully responsive and works seamlessly across:
 - Desktop computers
 - Tablets
 - Mobile devices
