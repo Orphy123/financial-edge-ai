@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -103,7 +102,7 @@ const MarketSearch = ({ onSymbolSelect }: MarketSearchProps) => {
                 variant="outline"
                 size="sm"
                 onClick={() => handleSymbolSelect(symbol)}
-                className="justify-start text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white"
+                className="justify-start text-black bg-white border-gray-200 hover:bg-gray-100 hover:text-black"
               >
                 <TrendingUp className="h-3 w-3 mr-2" />
                 {symbol}
