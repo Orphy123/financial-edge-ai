@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +29,7 @@ const AIChatAssistant = ({ symbol, name }: AIChatAssistantProps) => {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -53,6 +53,7 @@ const AIChatAssistant = ({ symbol, name }: AIChatAssistantProps) => {
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
+    setError(null);
 
     try {
       const { data, error } = await supabase.functions.invoke('ai-chat', {
@@ -63,25 +64,33 @@ const AIChatAssistant = ({ symbol, name }: AIChatAssistantProps) => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || 'Failed to get response from AI assistant');
+      }
+
+      if (!data?.response) {
+        throw new Error('No response received from AI assistant');
+      }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: data?.response || 'I apologize, but I encountered an error processing your request. Please try again.',
+        content: data.response,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
-      const errorMessage: Message = {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      setError(errorMessage);
+      const errorResponse: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'I apologize, but I encountered an error processing your request. Please try again.',
+        content: `I apologize, but I encountered an error: ${errorMessage}. Please try again.`,
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorResponse]);
     } finally {
       setIsLoading(false);
     }
@@ -170,6 +179,11 @@ const AIChatAssistant = ({ symbol, name }: AIChatAssistantProps) => {
             <Send className="h-4 w-4" />
           </Button>
         </div>
+        {error && (
+          <div className="mt-2 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
