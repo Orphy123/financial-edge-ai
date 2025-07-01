@@ -42,6 +42,8 @@ A sophisticated AI-powered trading assistant and market analysis platform that c
 
 ### Installation
 
+Copy `.env.example` to `.env` and add your Supabase credentials before starting the app.
+
 ```sh
 # Clone the repository
 git clone <YOUR_GIT_URL>
