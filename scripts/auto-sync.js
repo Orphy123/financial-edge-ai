@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-const chokidar = require('chokidar');
-const { execSync } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import chokidar from 'chokidar';
+import { execSync } from 'child_process';
+import path from 'path';
+import fs from 'fs';
 
 // Configuration
 const config = {

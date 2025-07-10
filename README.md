@@ -172,7 +172,7 @@ supabase secrets set --env-file ./supabase/.env
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on what to do.
 
 ## 📄 License
 
