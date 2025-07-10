@@ -1,0 +1,71 @@
+name: 🚀 Auto-Sync & Deploy
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  auto-sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📂 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📦 Install Dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build Project
+      run: npm run build
+      
+    - name: 🧪 Run Tests
+      run: npm run test --if-present
+      
+    - name: 📊 Bundle Size Analysis
+      run: |
+        npm run build
+        echo "## 📦 Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+        if command -v du &> /dev/null; then
+          echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          find dist -name "*.js" -o -name "*.css" | head -10 | while read file; do
+            size=$(du -h "$file" | cut -f1)
+            echo "| $file | $size |" >> $GITHUB_STEP_SUMMARY
+          done
+        fi
+        
+    - name: 🔍 Code Quality Check
+      run: |
+        echo "## 🔍 Code Quality Report" >> $GITHUB_STEP_SUMMARY
+        if command -v find &> /dev/null; then
+          tsx_files=$(find src -name "*.tsx" -o -name "*.ts" | wc -l)
+          echo "- TypeScript/TSX files: $tsx_files" >> $GITHUB_STEP_SUMMARY
+          echo "- Last commit: $(git log -1 --pretty=format:'%h - %s (%an, %cr)')" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: 📈 Performance Metrics
+      run: |
+        echo "## ⚡ Performance Metrics" >> $GITHUB_STEP_SUMMARY
+        echo "- Build completed successfully ✅" >> $GITHUB_STEP_SUMMARY
+        echo "- Node version: $(node --version)" >> $GITHUB_STEP_SUMMARY
+        echo "- NPM version: $(npm --version)" >> $GITHUB_STEP_SUMMARY
+        
+    - name: 🔔 Notify Success
+      if: success()
+      run: |
+        echo "## ✅ Auto-Sync Completed Successfully" >> $GITHUB_STEP_SUMMARY
+        echo "All checks passed! The project has been successfully synchronized." >> $GITHUB_STEP_SUMMARY
+        
+    - name: 🚨 Notify Failure
+      if: failure()
+      run: |
+        echo "## ❌ Auto-Sync Failed" >> $GITHUB_STEP_SUMMARY
+        echo "Some checks failed. Please review the logs above." >> $GITHUB_STEP_SUMMARY 

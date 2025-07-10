@@ -31,4 +31,59 @@ supabase/.env.local
 *.njsproj
 *.sln
 *.sw?
-.env
+
+# Auto-sync safety - prevent accidental commits
+.env*
+*.key
+*.pem
+*.cert
+*.p12
+*.pfx
+config/secrets.json
+private/
+secrets/
+*.secret
+*.private
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+temp/
+*.swp
+*.swo
+*~
+.#*
+\#*#
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Runtime and cache
+*.pid
+*.seed
+*.log
+.cache/
+.parcel-cache/
+
+# Build artifacts
+build/
+dist/
+out/
+*.tgz
+*.tar.gz
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Auto-sync specific
+scripts/auto-sync.log
+.auto-sync-state
