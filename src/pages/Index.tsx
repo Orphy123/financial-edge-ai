@@ -7,7 +7,7 @@ import AIAnalysis from '@/components/AIAnalysis';
 import Watchlist from '@/components/Watchlist';
 import AnalysisHistory from '@/components/AnalysisHistory';
 import MarketSearch from '@/components/MarketSearch';
-import InteractiveChart from '@/components/InteractiveChart';
+import TradingViewChart from '@/components/TradingViewChart';
 import AIChatAssistant from '@/components/AIChatAssistant';
 import SymbolNews from '@/components/SymbolNews';
 import { Button } from '@/components/ui/button';
@@ -94,7 +94,7 @@ const Index = () => {
             <div className="space-y-8">
               {/* Interactive Chart */}
               <section>
-                <InteractiveChart 
+                <TradingViewChart 
                   symbol={selectedSymbol.symbol} 
                   name={selectedSymbol.name} 
                 />
