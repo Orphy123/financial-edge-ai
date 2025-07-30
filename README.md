@@ -189,10 +189,5 @@ For support, please:
 
 This platform provides market analysis and insights but does not constitute financial advice. Users should conduct their own research and consult with financial advisors before making investment decisions.
 
----
-
-<div align="center">
-Made with ❤️ by the Financial Edge AI Team
-</div>
 
 
