@@ -65,62 +65,7 @@ Financial Edge AI is a cutting-edge trading platform that leverages artificial i
 - **PostCSS**: Advanced CSS processing
 - **TailwindCSS**: Utility-first CSS framework
 
-## 🚀 Getting Started
 
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or bun package manager
-- Git
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/financial-edge-ai.git
-
-# Navigate to project directory
-cd financial-edge-ai
-
-# Install dependencies
-npm install
-# or
-bun install
-
-# Start development server
-npm run dev
-# or
-bun dev
-```
-
-### Environment Setup
-
-⚠️ **IMPORTANT**: To use real market data instead of simulated data, you need to configure API keys. See [API_SETUP_GUIDE.md](./API_SETUP_GUIDE.md) for detailed instructions.
-
-#### Quick Setup
-1. Create a `.env` file in the root directory:
-```env
-# Frontend Environment Variables
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# API Keys for Real Market Data
-FINNHUB_API_KEY=your_finnhub_api_key
-OPENAI_API_KEY=your_openai_api_key
-```
-
-2. Create `supabase/.env` file:
-```env
-# Backend API Keys
-FINNHUB_API_KEY=your_finnhub_api_key
-OPENAI_API_KEY=your_openai_api_key
-```
-
-3. Set production secrets:
-```bash
-supabase secrets set --env-file ./supabase/.env
-```
-
-📖 **Read the [API Setup Guide](./API_SETUP_GUIDE.md) for complete instructions on getting API keys and configuring the application.**
 
 ## 📱 Features in Detail
 
@@ -170,20 +115,11 @@ supabase secrets set --env-file ./supabase/.env
 - Bundle size optimization
 - Server-side rendering where applicable
 
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on what to do.
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📞 Support
-
-For support, please:
-- Open an issue in the GitHub repository
-- Contact our support team at support@financialedge.ai
-- Join our community Discord server
 
 ## ⚠️ Disclaimer
 
